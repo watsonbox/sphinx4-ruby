@@ -2,19 +2,12 @@ require 'xbmc-client'
 
 import "java.util.HashMap"
 import "java.util.Map"
-
-$CLASSPATH << "sphinx4/sphinx4-core/target/classes"
-
 import "edu.cmu.sphinx.api.Configuration"
 import "edu.cmu.sphinx.api.LiveSpeechRecognizer"
 
-DATA_RESOURCES_DIR = "./sphinx4/sphinx4-data/src/main/resources"
-ACOUSTIC_MODEL_PATH = File.join(DATA_RESOURCES_DIR, "edu/cmu/sphinx/models/acoustic/wsj")
-DICTIONARY_PATH = File.join(DATA_RESOURCES_DIR, "edu/cmu/sphinx/models/acoustic/wsj/dict/cmudict.0.6d")
-GRAMMAR_PATH = "./grammars/"
-
 class Listener
   attr_accessor :configuration
+  attr_writer :recognizer
 
   def initialize(acoustic_model_path, dictionary_path, grammar_path)
     self.configuration = Configuration.new
@@ -26,27 +19,37 @@ class Listener
     configuration.setGrammarName("xbmc")
   end
 
-  def listen
-    jsgfRecognizer = LiveSpeechRecognizer.new(configuration).tap do |recognizer|
-      recognizer.startRecognition(true)
-    end
+  def recognizer
+    @recognizer ||= LiveSpeechRecognizer.new(configuration)
+  end
 
-    say "Listening"
+  def start_recognition
+    recognizer.startRecognition(true)
+  end
 
-    while true do
+  def listen(count = Float::INFINITY)
+    start_recognition
+
+    say "Listening" if recognizer.is_a?(LiveSpeechRecognizer)
+
+    1.upto(count) do
       puts "Listening..."
+      break if handle(recognizer.getResult().getHypothesis()) == false
+    end
+  end
 
-      puts utterance = jsgfRecognizer.getResult().getHypothesis()
+  def handle(utterance)
+    puts utterance
 
-      if (utterance.start_with?("exit"))
-        break
-      elsif (utterance.start_with?('move'))
-        kodi.input.send utterance.split.last
-      elsif (utterance.start_with?('select'))
-        kodi.input.select
-      elsif (utterance.start_with?('back'))
-        kodi.input.back
-      end
+    case
+    when utterance.start_with?("exit")
+      return false
+    when utterance.start_with?('move')
+      kodi.input.send utterance.split.last
+    when utterance.start_with?('select')
+      kodi.input.select
+    when utterance.start_with?('back')
+      kodi.input.back
     end
   end
 
@@ -68,7 +71,3 @@ class Listener
     @kodi = Struct.new(:input).new(Xbmc::Input)
   end
 end
-
-listener = Listener.new ACOUSTIC_MODEL_PATH, DICTIONARY_PATH, GRAMMAR_PATH
-
-listener.listen
