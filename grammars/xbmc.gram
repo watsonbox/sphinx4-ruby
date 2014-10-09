@@ -1,0 +1,21 @@
+#JSGF V1.0;
+
+grammar xbmc;
+
+public <command> =  show movies         |
+                    show tv shows       |
+                    move up             |
+                    move down           |
+                    move left           |
+                    move right          |
+                    page up             |
+                    page down           |
+                    show information    |
+                    play [this] movie   |
+                    play [this] tv show |
+                    pause               |
+                    resume              |
+                    exit                |
+                    back                |
+                    select              |
+                    download subtitles  ;
